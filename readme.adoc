@@ -2,7 +2,7 @@ image:https://img.shields.io/github/license/lazy-cat-io/equalizer[license,link=l
 image:https://img.shields.io/github/v/release/lazy-cat-io/equalizer.svg[https://github.com/lazy-cat-io/equalizer/releases]
 image:https://img.shields.io/clojars/v/io.lazy-cat/equalizer.svg[clojars,link=https://clojars.org/io.lazy-cat/equalizer]
 
-image:https://codecov.io/gh/lazy-cat-io/equalizer/branch/master/graph/badge.svg?token=BGGNUI43Y2[codecov,https://codecov.io/gh/lazy-cat-io/equalizer]
+image:https://codecov.io/gh/lazy-cat-io/equalizer/branch/master/graph/badge.svg?token=uUs5bl9S0C[codecov,https://codecov.io/gh/lazy-cat-io/equalizer]
 image:https://github.com/lazy-cat-io/equalizer/actions/workflows/build.yml/badge.svg[build,https://github.com/lazy-cat-io/equalizer/actions/workflows/build.yml]
 image:https://github.com/lazy-cat-io/equalizer/actions/workflows/deploy.yml/badge.svg[deploy,https://github.com/lazy-cat-io/equalizer/actions/workflows/deploy.yml]
 
