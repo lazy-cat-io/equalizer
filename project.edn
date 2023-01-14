@@ -1,0 +1,22 @@
+{:name         io.lazy-cat/equalizer
+ :version      "0.0.{{ git/commits-count }}{{ version/pre-release }}"
+ :description  "A Clojure(Script) library for data-driven tests"
+ :license      "MIT"
+ :author       "Ilshat Sultanov <ilshat@sultanov.team>"
+ :contributors [{:name  "Ilshat Sultanov"
+                 :email "ilshat@sultanov.team"
+                 :url   "https://github.com/just-sultanov"}]
+ :homepage     "https://github.com/lazy-cat-io/equalizer#readme"
+ :repository   {:url "https://github.com/lazy-cat-io/equalizer"}
+ :bugs         {:url "https://github.com/lazy-cat-io/equalizer/issues"}
+ :keywords     [:clojure :clojurescript :tests :data-driven-tests]
+
+ :build        {:src-dirs      ["src/main/clojure"]
+                :resource-dirs ["src/main/resources"]
+                :target        "target"
+                :jar-file      "target/equalizer.jar"
+                :scm           {:url #ref [:repository :url]}}
+
+ :metadata     {:build/created-at "{{ build/created-at }}"
+                :git/branch       "{{ git/branch }}"
+                :git/sha          "{{ git/sha }}"}}
