@@ -1,0 +1,47 @@
+image:https://img.shields.io/github/license/lazy-cat-io/equalizer[license,link=license]
+image:https://img.shields.io/github/v/release/lazy-cat-io/equalizer.svg[https://github.com/lazy-cat-io/equalizer/releases]
+image:https://img.shields.io/clojars/v/io.lazy-cat/equalizer.svg[clojars,link=https://clojars.org/io.lazy-cat/equalizer]
+
+image:https://codecov.io/gh/lazy-cat-io/equalizer/branch/master/graph/badge.svg?token=BGGNUI43Y2[codecov,https://codecov.io/gh/lazy-cat-io/equalizer]
+image:https://github.com/lazy-cat-io/equalizer/actions/workflows/build.yml/badge.svg[build,https://github.com/lazy-cat-io/equalizer/actions/workflows/build.yml]
+image:https://github.com/lazy-cat-io/equalizer/actions/workflows/deploy.yml/badge.svg[deploy,https://github.com/lazy-cat-io/equalizer/actions/workflows/deploy.yml]
+
+== equalizer
+
+A Clojure(Script) library for data-driven tests.
+
+
+=== Getting started
+
+Add the following dependency in your project:
+
+.project.clj or build.boot
+[source,clojure]
+----
+[io.lazy-cat/equalizer "RELEASE"]
+----
+
+.deps.edn or bb.edn
+[source,clojure]
+----
+io.lazy-cat/equalizer {:mvn/version "RELEASE"}
+----
+
+
+==== Basic API
+
+[source,clojure]
+----
+(ns example
+  (:require
+    [equalizer.core :as eq]))
+
+(eq/match pos-int? 42)
+;; => true
+----
+
+
+=== License
+
+link:license[Copyright © 2022 lazy-cat.io]
+
