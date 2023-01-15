@@ -92,36 +92,9 @@
       (t/is (true? (sut/match? matcher 42)))
       (t/is (true? (matcher sym)))
       (t/is (true? (matcher nil)))
-      (t/is (true? (matcher 42))))))
+      (t/is (true? (matcher 42)))))
 
 
-
-(t/deftest combinators-test
-  (t/testing "not"
-    (t/is (true? (sut/match? (sut/not 42) -42)))
-    (t/is (false? (sut/match? (sut/not 42) 42)))
-    (t/is (true? ((sut/not 42) -42)))
-    (t/is (false? ((sut/not 42) 42))))
-
-
-  (t/testing "and"
-    (t/is (true? (sut/match? (sut/and string? #"\d+") "42")))
-    (t/is (false? (sut/match? (sut/and string? #"\d+") 42)))
-    (t/is (true? ((sut/and string? #"\d+") "42")))
-    (t/is (false? ((sut/and string? #"\d+") 42))))
-
-
-  (t/testing "or"
-    (t/is (true? (sut/match? (sut/or string? pos-int?) "42")))
-    (t/is (true? (sut/match? (sut/or string? pos-int?) 42)))
-    (t/is (false? (sut/match? (sut/or string? pos-int?) -42)))
-    (t/is (true? ((sut/or string? pos-int?) "42")))
-    (t/is (true? ((sut/or string? pos-int?) 42)))
-    (t/is (false? ((sut/or string? pos-int?) -42)))))
-
-
-
-(t/deftest equalizer-api-test
   (t/testing "map-matcher"
     (t/is (true? (sut/match {:foo "bar"} {:foo "bar"})))
     (t/is (true? (sut/match {:status 200, :body {:username string?, :age #(<= 18 %)}}
@@ -142,3 +115,57 @@
     (t/is (true? (sut/match [1 2 3] [1 2 3 4 5])))
     (t/is (true? (sut/match [pos-int? string? any?] [42 "foo" :bar])))
     (t/is (true? (sut/match [pos-int? string? any?] [42 "foo" :bar :baz])))))
+
+
+
+(t/deftest combinators-test
+  (t/testing "logical combinators"
+    (t/testing "not"
+      (t/is (true? (sut/match? (sut/not 42) -42)))
+      (t/is (false? (sut/match? (sut/not 42) 42)))
+      (t/is (true? ((sut/not 42) -42)))
+      (t/is (false? ((sut/not 42) 42))))
+
+
+    (t/testing "and"
+      (t/is (true? (sut/match? (sut/and string? #"\d+") "42")))
+      (t/is (false? (sut/match? (sut/and string? #"\d+") 42)))
+      (t/is (true? ((sut/and string? #"\d+") "42")))
+      (t/is (false? ((sut/and string? #"\d+") 42))))
+
+
+    (t/testing "or"
+      (t/is (true? (sut/match? (sut/or string? pos-int?) "42")))
+      (t/is (true? (sut/match? (sut/or string? pos-int?) 42)))
+      (t/is (false? (sut/match? (sut/or string? pos-int?) -42)))
+      (t/is (true? ((sut/or string? pos-int?) "42")))
+      (t/is (true? ((sut/or string? pos-int?) 42)))
+      (t/is (false? ((sut/or string? pos-int?) -42)))))
+
+
+  (t/testing "collections"
+    (t/testing "tuple"
+      (t/is (false? (sut/match? (sut/tuple pos-int? string?) [])))
+      (t/is (true? (sut/match? (sut/tuple pos-int? string?) [42 "foo"])))
+      (t/is (false? (sut/match? (sut/tuple pos-int? string?) [42 "foo" :bar])))
+      (t/is (false? ((sut/tuple pos-int? string?) [])))
+      (t/is (true? ((sut/tuple pos-int? string?) [42 "foo"])))
+      (t/is (false? ((sut/tuple pos-int? string?) [42 "foo" :bar]))))
+
+
+    (t/testing "coll-of"
+      (t/is (true? (sut/match? (sut/coll-of pos-int?) [])))
+      (t/is (true? (sut/match? (sut/coll-of pos-int?) [1 2 3])))
+      (t/is (true? (sut/match? (sut/coll-of pos-int?) (list 1 2 3))))
+      (t/is (false? (sut/match? (sut/coll-of pos-int?) [1 2 3 -4])))
+      (t/is (false? (sut/match? (sut/coll-of pos-int?) (list 1 2 3 -4))))
+      (t/is (true? ((sut/coll-of pos-int?) [])))
+      (t/is (true? ((sut/coll-of pos-int?) [1 2 3])))
+      (t/is (true? ((sut/coll-of pos-int?) (list 1 2 3))))
+      (t/is (false? ((sut/coll-of pos-int?) [1 2 3 -4])))
+      (t/is (false? ((sut/coll-of pos-int?) (list 1 2 3 -4)))))
+
+
+    (t/testing "map-of"
+      (t/is (true? (sut/match (sut/map-of string? pos-int?) {})))
+      (t/is (true? (sut/match (sut/map-of string? pos-int?) {"foo" 42}))))))

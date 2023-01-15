@@ -222,6 +222,68 @@
 
 
 
+;;
+;; Collections
+;;
+
+(defn tuple
+  [& ?matchers]
+  (let [matchers (mapv into-matcher ?matchers)
+        n (count matchers)]
+    (as-matcher
+      {:kind :tuple
+       :matchers matchers
+       :predicate (fn predicate
+                    [x]
+                    (c/or
+                      (= ?matchers x)
+                      (c/and
+                        (sequential? x)
+                        (= n (count x))
+                        (loop [acc true
+                               [matcher & matchers] matchers
+                               [x & xs] x]
+                          (if (c/or (false? acc) (nil? matcher))
+                            (boolean acc)
+                            (recur (matcher x) matchers xs))))))})))
+
+
+
+(defn coll-of
+  [?matcher]
+  (let [matcher (into-matcher ?matcher)]
+    (as-matcher
+      {:kind :coll-of
+       :matchers [matcher]
+       :predicate (fn predicate
+                    [x]
+                    (c/or
+                      (= matcher x)
+                      (every? matcher x)))})))
+
+
+(defn map-of
+  [?key-matcher ?value-matcher]
+  (let [key-matcher (into-matcher ?key-matcher)
+        value-matcher (into-matcher ?value-matcher)]
+    (as-matcher
+      {:kind :map-of
+       :matchers [key-matcher value-matcher]
+       :predicate (fn predicate
+                    [x]
+                    (c/and
+                      (map? x)
+                      (reduce-kv
+                        (fn [acc k v]
+                          (if (c/and
+                                (key-matcher k)
+                                (value-matcher v))
+                            acc
+                            (reduced false)))
+                        true x)))})))
+
+
+
 ;; 
 ;; Default behaviour
 ;;
