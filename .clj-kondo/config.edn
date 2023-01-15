@@ -1,0 +1,27 @@
+{:output       {:exclude-files [".cljstyle"]}
+
+ :config-paths []
+
+ :lint-as      {}
+
+ :linters      {:consistent-alias
+                {:aliases {clojure.pprint     pprint
+                           clojure.set        set
+                           clojure.string     str}}
+
+                :unresolved-namespace
+                {:exclude [user criterium.core]}
+
+                :unresolved-symbol
+                {:exclude [(cljs.test/are [match? thrown? thrown-with-msg?])
+                           (cljs.test/is [match? thrown? thrown-with-msg?])
+                           (clojure.test/are [match? thrown? thrown-with-msg?])
+                           (clojure.test/is [match? thrown? thrown-with-msg?])]}
+
+                :unsorted-required-namespaces
+                {:level :error}
+
+                :unused-referred-var
+                {:exclude {}}}
+
+ :hooks        {}}
