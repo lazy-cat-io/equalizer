@@ -101,8 +101,9 @@
     {:kind :fn
      :predicate (fn predicate
                   [x]
-                  (c/or (= f x)
-                        (boolean (f x))))}))
+                  (c/or
+                    (= f x)
+                    (boolean (f x))))}))
 
 
 (defn regexp-matcher
@@ -111,8 +112,9 @@
     {:kind :regexp
      :predicate (fn predicate
                   [s]
-                  (c/or (= re s)
-                        (c/and (string? s) (boolean (re-matches re s)))))}))
+                  (c/or
+                    (= re s)
+                    (c/and (string? s) (boolean (re-matches re s)))))}))
 
 
 (defn wildcard-matcher
@@ -145,13 +147,16 @@
        :matchers matchers
        :predicate (fn predicate
                     [x]
-                    (c/or (= m x)
-                          (reduce
-                            (fn [acc [path matcher]]
-                              (if (matcher (get-in x path))
-                                acc
-                                (reduced false)))
-                            true matchers)))})))
+                    (c/or
+                      (= m x)
+                      (c/and
+                        (map? x)
+                        (reduce
+                          (fn [acc [path matcher]]
+                            (if (matcher (get-in x path))
+                              acc
+                              (reduced false)))
+                          true matchers))))})))
 
 
 
