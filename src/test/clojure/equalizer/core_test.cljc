@@ -28,36 +28,23 @@
     (t/testing "different values"
       (let [matcher (sut/into-matcher true)]
         (t/is (false? (sut/match? matcher false)))
-        (t/is (false? (matcher false))))))
-
-
-  (t/testing "fn-matcher"
-    (t/testing "fn"
-      (let [matcher (sut/into-matcher pos-int?)]
-        (t/is (true? (sut/match? matcher 42)))
-        (t/is (true? (sut/match? matcher pos-int?)))
-        (t/is (false? (sut/match? matcher -42)))
-        (t/is (true? (matcher 42)))
-        (t/is (true? (matcher pos-int?)))
-        (t/is (false? (matcher -42)))))
+        (t/is (false? (matcher false)))))
 
     (t/testing "set"
       (let [matcher (sut/into-matcher #{42})]
         (t/is (true? (sut/match? matcher #{42})))
         (t/is (false? (sut/match? matcher #{"42"})))
-        (t/is (true? (sut/match? matcher 42)))
+        (t/is (false? (sut/match? matcher 42)))
         (t/is (false? (sut/match? matcher "42")))
         (t/is (true? (matcher #{42})))
         (t/is (false? (matcher #{"42"})))
-        (t/is (true? (matcher 42)))
+        (t/is (false? (matcher 42)))
         (t/is (false? (matcher "42")))))
 
     (t/testing "keyword"
       (let [matcher (sut/into-matcher ::foo)]
-        (t/is (true? (sut/match? matcher {::foo "bar"})))
-        (t/is (true? (matcher {::foo "bar"})))
-        ;; the current implementation returns `false` result for the following cases
-        ;; maybe we should only check for the presence of a value using keyword-matcher?
+        (t/is (false? (sut/match? matcher {::foo "bar"})))
+        (t/is (false? (matcher {::foo "bar"})))
         (t/is (false? (sut/match? matcher {::foo false})))
         (t/is (false? (sut/match? matcher {::foo nil})))
         (t/is (false? (matcher {::foo false})))
@@ -71,6 +58,19 @@
         (t/is (true? (matcher {::foo "bar"})))
         (t/is (false? (matcher ::foo)))
         (t/is (false? (matcher ::bar))))))
+
+
+
+  (t/testing "fn-matcher"
+    (t/testing "fn"
+      (let [matcher (sut/into-matcher pos-int?)]
+        (t/is (true? (sut/match? matcher 42)))
+        (t/is (true? (sut/match? matcher pos-int?)))
+        (t/is (false? (sut/match? matcher -42)))
+        (t/is (true? (matcher 42)))
+        (t/is (true? (matcher pos-int?)))
+        (t/is (false? (matcher -42))))))
+
 
 
   (t/testing "regexp-matcher"

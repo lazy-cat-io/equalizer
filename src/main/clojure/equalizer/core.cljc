@@ -293,7 +293,7 @@
 (extend-type #?(:clj Object, :cljs default)
   IMatcherBuilder
   (into-matcher [obj]
-    (if (ifn? obj)
+    (if (fn? obj)
       (fn-matcher obj)
       (equality-matcher obj)))
 
