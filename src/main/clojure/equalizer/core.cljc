@@ -12,6 +12,8 @@
          IFn
          PersistentArrayMap
          PersistentHashMap
+         PersistentList
+         PersistentVector
          Symbol
          Var)
        (java.util.regex
@@ -159,6 +161,26 @@
                           true matchers))))})))
 
 
+(defn sequential-matcher
+  [coll]
+  (let [matchers (mapv into-matcher coll)]
+    (as-matcher
+      {:kind :sequential
+       :matchers matchers
+       :predicate (fn predicate
+                    [x]
+                    (c/or
+                      (= coll x)
+                      (c/and
+                        (sequential? x)
+                        (loop [acc true
+                               [matcher & matchers] matchers
+                               [x & xs] x]
+                          (if (c/or (false? acc) (nil? matcher))
+                            (boolean acc)
+                            (recur (matcher x) matchers xs))))))})))
+
+
 
 ;;
 ;; Combinators
@@ -257,6 +279,18 @@
   IMatcherBuilder
   (into-matcher [m]
     (map-matcher m)))
+
+
+(extend-type #?(:clj PersistentList, :cljs cljs.core/List)
+  IMatcherBuilder
+  (into-matcher [coll]
+    (sequential-matcher coll)))
+
+
+(extend-type #?(:clj PersistentVector, :cljs cljs.core/PersistentVector)
+  IMatcherBuilder
+  (into-matcher [coll]
+    (sequential-matcher coll)))
 
 
 
