@@ -259,18 +259,17 @@
 
 (defn map-of
   [?key-matcher ?value-matcher]
-  (let [key-matcher (into-matcher ?key-matcher)
-        value-matcher (into-matcher ?value-matcher)]
+  (let [entry-matcher (tuple ?key-matcher ?value-matcher)]
     (as-matcher
       {:kind :map-of
-       :matchers [key-matcher value-matcher]
+       :matchers [entry-matcher]
        :predicate (fn predicate
                     [?map]
                     (c/and
                       (map? ?map)
-                      (reduce-kv
-                        (fn [acc k v]
-                          (if (c/and (key-matcher k) (value-matcher v))
+                      (reduce
+                        (fn [acc entry]
+                          (if (entry-matcher entry)
                             acc
                             (reduced false)))
                         true ?map)))})))
