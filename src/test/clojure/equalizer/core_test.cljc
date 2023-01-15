@@ -36,17 +36,17 @@
       (let [matcher (sut/into-matcher pos-int?)]
         (t/is (true? (sut/match? matcher 42)))
         (t/is (true? (sut/match? matcher pos-int?)))
-        (t/is (false? (sut/match matcher -42)))
+        (t/is (false? (sut/match? matcher -42)))
         (t/is (true? (matcher 42)))
         (t/is (true? (matcher pos-int?)))
         (t/is (false? (matcher -42)))))
 
     (t/testing "set"
       (let [matcher (sut/into-matcher #{42})]
-        (t/is (true? (sut/match matcher #{42})))
-        (t/is (false? (sut/match matcher #{"42"})))
-        (t/is (true? (sut/match matcher 42)))
-        (t/is (false? (sut/match matcher "42")))
+        (t/is (true? (sut/match? matcher #{42})))
+        (t/is (false? (sut/match? matcher #{"42"})))
+        (t/is (true? (sut/match? matcher 42)))
+        (t/is (false? (sut/match? matcher "42")))
         (t/is (true? (matcher #{42})))
         (t/is (false? (matcher #{"42"})))
         (t/is (true? (matcher 42)))
@@ -54,20 +54,20 @@
 
     (t/testing "keyword"
       (let [matcher (sut/into-matcher ::foo)]
-        (t/is (true? (sut/match matcher {::foo "bar"})))
+        (t/is (true? (sut/match? matcher {::foo "bar"})))
         (t/is (true? (matcher {::foo "bar"})))
         ;; the current implementation returns `false` result for the following cases
         ;; maybe we should only check for the presence of a value using keyword-matcher?
-        (t/is (false? (sut/match matcher {::foo false})))
-        (t/is (false? (sut/match matcher {::foo nil})))
+        (t/is (false? (sut/match? matcher {::foo false})))
+        (t/is (false? (sut/match? matcher {::foo nil})))
         (t/is (false? (matcher {::foo false})))
         (t/is (false? (matcher {::foo nil})))))
 
     (t/testing "map"
       (let [matcher (sut/into-matcher {::foo "bar"})]
-        (t/is (true? (sut/match matcher {::foo "bar"})))
-        (t/is (false? (sut/match matcher ::foo)))
-        (t/is (false? (sut/match matcher ::bar)))
+        (t/is (true? (sut/match? matcher {::foo "bar"})))
+        (t/is (false? (sut/match? matcher ::foo)))
+        (t/is (false? (sut/match? matcher ::bar)))
         (t/is (true? (matcher {::foo "bar"})))
         (t/is (false? (matcher ::foo)))
         (t/is (false? (matcher ::bar))))))
@@ -102,19 +102,7 @@
                     :body {:username "@john.doe", :age 42}})))
     (t/is (true? (sut/match {:status 200, :body {:username string?, :age #(<= 18 %)}}
                    {:status 200
-                    :body {:username "@john.doe", :age 42, :id (random-uuid)}}))))
-
-
-  (t/testing "sequential-matcher"
-    (t/is (true? (sut/match (list 1 2 3) (list 1 2 3))))
-    (t/is (true? (sut/match (list 1 2 3) (list 1 2 3 4 5))))
-    (t/is (true? (sut/match (list pos-int? string? any?) (list 42 "foo" :bar))))
-    (t/is (true? (sut/match (list pos-int? string? any?) (list 42 "foo" :bar :baz))))
-
-    (t/is (true? (sut/match [1 2 3] [1 2 3])))
-    (t/is (true? (sut/match [1 2 3] [1 2 3 4 5])))
-    (t/is (true? (sut/match [pos-int? string? any?] [42 "foo" :bar])))
-    (t/is (true? (sut/match [pos-int? string? any?] [42 "foo" :bar :baz])))))
+                    :body {:username "@john.doe", :age 42, :id (random-uuid)}})))))
 
 
 
@@ -167,5 +155,8 @@
 
 
     (t/testing "map-of"
-      (t/is (true? (sut/match (sut/map-of string? pos-int?) {})))
-      (t/is (true? (sut/match (sut/map-of string? pos-int?) {"foo" 42}))))))
+      (t/is (true? (sut/match? (sut/map-of string? pos-int?) {})))
+      (t/is (true? (sut/match? (sut/map-of string? pos-int?) {"foo" 42})))
+      (t/is (false? (sut/match? (sut/map-of string? pos-int?) {"foo" 42, "bar" -42})))
+      (t/is (true? (sut/match? (sut/map-of qualified-keyword? pos-int?) {::foo 64, ::bar 128, ::baz 256})))
+      (t/is (false? (sut/match? (sut/map-of qualified-keyword? pos-int?) {::foo 64, ::bar 128, :baz 256}))))))

@@ -113,10 +113,10 @@
   (as-matcher
     {:kind :regexp
      :predicate (fn predicate
-                  [s]
+                  [?string]
                   (c/or
-                    (= re s)
-                    (c/and (string? s) (boolean (re-matches re s)))))}))
+                    (= re ?string)
+                    (c/and (string? ?string) (boolean (re-matches re ?string)))))}))
 
 
 (defn wildcard-matcher
@@ -148,38 +148,17 @@
       {:kind :map
        :matchers matchers
        :predicate (fn predicate
-                    [x]
+                    [?map]
                     (c/or
-                      (= m x)
+                      (= m ?map)
                       (c/and
-                        (map? x)
+                        (map? ?map)
                         (reduce
                           (fn [acc [path matcher]]
-                            (if (matcher (get-in x path))
+                            (if (matcher (get-in ?map path))
                               acc
                               (reduced false)))
                           true matchers))))})))
-
-
-(defn sequential-matcher
-  [coll]
-  (let [matchers (mapv into-matcher coll)]
-    (as-matcher
-      {:kind :sequential
-       :matchers matchers
-       :predicate (fn predicate
-                    [x]
-                    (c/or
-                      (= coll x)
-                      (c/and
-                        (sequential? x)
-                        (loop [acc true
-                               [matcher & matchers] matchers
-                               [x & xs] x]
-                          (if (c/or (false? acc) (nil? matcher))
-                            (boolean acc)
-                            (recur (matcher x) matchers xs))))))})))
-
 
 
 ;;
@@ -229,24 +208,23 @@
 (defn tuple
   [& ?matchers]
   (let [matchers (mapv into-matcher ?matchers)
-        n (count matchers)]
+        size (count matchers)]
     (as-matcher
       {:kind :tuple
        :matchers matchers
        :predicate (fn predicate
-                    [x]
+                    [?coll]
                     (c/or
-                      (= ?matchers x)
+                      (= ?matchers ?coll)
                       (c/and
-                        (sequential? x)
-                        (= n (count x))
+                        (sequential? ?coll)
+                        (= size (count ?coll))
                         (loop [acc true
                                [matcher & matchers] matchers
-                               [x & xs] x]
+                               [x & xs] ?coll]
                           (if (c/or (false? acc) (nil? matcher))
                             (boolean acc)
                             (recur (matcher x) matchers xs))))))})))
-
 
 
 (defn coll-of
@@ -256,10 +234,12 @@
       {:kind :coll-of
        :matchers [matcher]
        :predicate (fn predicate
-                    [x]
+                    [?coll]
                     (c/or
-                      (= matcher x)
-                      (every? matcher x)))})))
+                      (= ?matcher ?coll)
+                      (c/and
+                        (sequential? ?coll)
+                        (every? matcher ?coll))))})))
 
 
 (defn map-of
@@ -270,17 +250,15 @@
       {:kind :map-of
        :matchers [key-matcher value-matcher]
        :predicate (fn predicate
-                    [x]
+                    [?map]
                     (c/and
-                      (map? x)
+                      (map? ?map)
                       (reduce-kv
                         (fn [acc k v]
-                          (if (c/and
-                                (key-matcher k)
-                                (value-matcher v))
+                          (if (c/and (key-matcher k) (value-matcher v))
                             acc
                             (reduced false)))
-                        true x)))})))
+                        true ?map)))})))
 
 
 
@@ -346,13 +324,13 @@
 (extend-type #?(:clj PersistentList, :cljs cljs.core/List)
   IMatcherBuilder
   (into-matcher [coll]
-    (sequential-matcher coll)))
+    (apply tuple coll)))
 
 
 (extend-type #?(:clj PersistentVector, :cljs cljs.core/PersistentVector)
   IMatcherBuilder
   (into-matcher [coll]
-    (sequential-matcher coll)))
+    (apply tuple coll)))
 
 
 
