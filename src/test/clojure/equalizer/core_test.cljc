@@ -166,4 +166,9 @@
       (t/is (true? (sut/match? (sut/map-of string? pos-int?) {"foo" 42})))
       (t/is (false? (sut/match? (sut/map-of string? pos-int?) {"foo" 42, "bar" -42})))
       (t/is (true? (sut/match? (sut/map-of qualified-keyword? pos-int?) {::foo 64, ::bar 128, ::baz 256})))
-      (t/is (false? (sut/match? (sut/map-of qualified-keyword? pos-int?) {::foo 64, ::bar 128, :baz 256}))))))
+      (t/is (false? (sut/match? (sut/map-of qualified-keyword? pos-int?) {::foo 64, ::bar 128, :baz 256}))))
+
+
+    (t/testing "cat"
+      (t/is (true? (sut/match? (sut/cat :quantity number? :unit keyword?) [2 :teaspoon])))
+      (t/is (false? (sut/match? (sut/cat :quantity number? :unit keyword?) ["foo" :teaspoon]))))))

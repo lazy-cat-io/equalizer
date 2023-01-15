@@ -1,5 +1,5 @@
 (ns equalizer.core
-  (:refer-clojure :exclude [not and or])
+  (:refer-clojure :exclude [not and or cat])
   (:require
     [clojure.core :as c]
     #?(:clj [equalizer.helpers :as helpers]))
@@ -273,6 +273,26 @@
                             acc
                             (reduced false)))
                         true ?map)))})))
+
+
+(defn cat
+  [& ?pairs]
+  (let [matchers (->> ?pairs
+                      (partition-all  2)
+                      (mapv (fn [[k v]] [k (into-matcher v)])))]
+    (as-matcher
+      {:kind :cat
+       :matchers matchers
+       :predicate (fn predicate
+                    [?coll]
+                    (c/and
+                      (sequential? ?coll)
+                      (loop [acc true
+                             [[_ matcher] & matchers] matchers
+                             [x & xs] ?coll]
+                        (if (c/or (false? acc) (nil? matcher))
+                          (boolean acc)
+                          (recur (matcher x) matchers xs)))))})))
 
 
 
