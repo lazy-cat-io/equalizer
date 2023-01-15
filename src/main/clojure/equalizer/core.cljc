@@ -10,6 +10,8 @@
      (:import
        (clojure.lang
          IFn
+         PersistentArrayMap
+         PersistentHashMap
          Symbol
          Var)
        (java.util.regex
@@ -122,6 +124,36 @@
                   true)}))
 
 
+(defn map-matchers
+  [m]
+  (letfn [(walk
+            [acc ks m]
+            (reduce-kv
+              (fn [acc k v]
+                (if (map? v)
+                  (walk acc (conj ks k) v)
+                  (conj acc [(conj ks k) (into-matcher v)])))
+              acc m))]
+    (walk [] [] m)))
+
+
+(defn map-matcher
+  [m]
+  (let [matchers (map-matchers m)]
+    (as-matcher
+      {:kind :map
+       :matchers matchers
+       :predicate (fn predicate
+                    [x]
+                    (c/or (= m x)
+                          (reduce
+                            (fn [acc [path matcher]]
+                              (if (matcher (get-in x path))
+                                acc
+                                (reduced false)))
+                            true matchers)))})))
+
+
 
 ;;
 ;; Combinators
@@ -208,6 +240,18 @@
     (if (= '_ sym)
       (wildcard-matcher)
       (equality-matcher sym))))
+
+
+(extend-type #?(:clj PersistentArrayMap, :cljs cljs.core/PersistentArrayMap)
+  IMatcherBuilder
+  (into-matcher [m]
+    (map-matcher m)))
+
+
+(extend-type #?(:clj PersistentHashMap, :cljs cljs.core/PersistentHashMap)
+  IMatcherBuilder
+  (into-matcher [m]
+    (map-matcher m)))
 
 
 
