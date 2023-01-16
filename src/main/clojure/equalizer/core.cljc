@@ -272,6 +272,11 @@
                         true ?map)))})))
 
 
+
+;;
+;; Sequences
+;;
+
 (defn cat
   [& ?pairs]
   (let [matchers (->> ?pairs
@@ -281,12 +286,12 @@
       {:kind :cat
        :matchers matchers
        :predicate (fn predicate
-                    [?coll]
+                    [?seq]
                     (c/and
-                      (sequential? ?coll)
+                      (sequential? ?seq)
                       (loop [acc true
                              [[_ matcher] & matchers] matchers
-                             [x & xs] ?coll]
+                             [x & xs] ?seq]
                         (if (c/or (false? acc) (nil? matcher))
                           (boolean acc)
                           (recur (matcher x) matchers xs)))))})))
