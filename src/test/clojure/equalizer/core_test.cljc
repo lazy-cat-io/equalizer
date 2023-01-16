@@ -62,14 +62,13 @@
 
 
   (t/testing "fn-matcher"
-    (t/testing "fn"
-      (let [matcher (sut/into-matcher pos-int?)]
-        (t/is (true? (sut/match? matcher 42)))
-        (t/is (true? (sut/match? matcher pos-int?)))
-        (t/is (false? (sut/match? matcher -42)))
-        (t/is (true? (matcher 42)))
-        (t/is (true? (matcher pos-int?)))
-        (t/is (false? (matcher -42))))))
+    (let [matcher (sut/into-matcher pos-int?)]
+      (t/is (true? (sut/match? matcher 42)))
+      (t/is (true? (sut/match? matcher pos-int?)))
+      (t/is (false? (sut/match? matcher -42)))
+      (t/is (true? (matcher 42)))
+      (t/is (true? (matcher pos-int?)))
+      (t/is (false? (matcher -42)))))
 
 
 
@@ -154,11 +153,12 @@
       (t/is (false? ((sut/coll-of pos-int?) (list 1 2 3 -4)))))
 
 
-    (t/testing "one-is"
-      (t/is (false? (sut/match? (sut/one-is pos-int?) [])))
-      (t/is (false? (sut/match? (sut/one-is pos-int?) [-256 -128 -64 -32 -16 -8 0])))
-      (t/is (true? (sut/match? (sut/one-is 42) [256 64 42 15])))
-      (t/is (true? (sut/match? (sut/one-is pos-int?) [-256 -128 -64 -32 -16 -8 0 8]))))
+    (t/testing "enum"
+      (t/is (false? (sut/match? (sut/enum pos-int?) [])))
+      (t/is (false? (sut/match? (sut/enum pos-int?) [-256 -128 -64 -32 -16 -8 0])))
+      (t/is (true? (sut/match? (sut/enum 42) [256 64 42 15])))
+      (t/is (true? (sut/match? (sut/enum 43 15) [256 64 42 15])))
+      (t/is (true? (sut/match? (sut/enum pos-int?) [-256 -128 -64 -32 -16 -8 0 8]))))
 
 
     (t/testing "map-of"

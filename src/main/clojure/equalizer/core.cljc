@@ -242,19 +242,16 @@
                         (every? matcher ?coll))))})))
 
 
-(defn one-is
-  [?matcher]
-  (let [matcher (into-matcher ?matcher)]
+(defn enum
+  [& ?matchers]
+  (let [matchers (mapv into-matcher ?matchers)
+        f (apply some-fn matchers)]
     (as-matcher
-      {:kind :one-is
-       :matchers [matcher]
+      {:kind :enum
+       :matchers matchers
        :predicate (fn predicate
-                    [?coll]
-                    (c/or
-                      (= ?matcher ?coll)
-                      (c/and
-                        (sequential? ?coll)
-                        (boolean (some matcher ?coll)))))})))
+                    [x]
+                    (boolean (some f x)))})))
 
 
 (defn map-of
