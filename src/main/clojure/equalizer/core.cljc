@@ -25,19 +25,15 @@
 ;;
 
 (defprotocol IMatcherBuilder
-  (into-matcher [this]))
+  (-matcher [this]))
 
 
 (defprotocol IMatcher
-  (match? [this x]))
-
-
-(defprotocol ICombinator
-  (matchers [this]))
+  (-match? [this x]))
 
 
 (defprotocol IKind
-  (kind [x]))
+  (-kind [x]))
 
 
 
@@ -46,39 +42,35 @@
 ;;
 
 (defrecord Matcher
-  [kind matchers predicate]
+  [kind predicate matcher explainer]
   IMatcherBuilder
-  (into-matcher [this]
+  (-matcher [this]
     this)
 
   IMatcher
-  (match? [_ x]
+  (-match? [_ x]
     (helpers/safe
       (boolean (predicate x))
       (constantly false)))
 
-  ICombinator
-  (matchers [_]
-    (c/or matchers []))
-
   IKind
-  (kind [_]
+  (-kind [_]
     kind)
 
   IFn
   #?(:clj
      (invoke
        [this x]
-       (match? this x))
+       (-match? this x))
 
      :cljs
      (-invoke
        [this x]
-       (match? this x))))
+       (-match? this x))))
 
 
 (defn as-matcher
-  {:arglists '([{:keys [kind matchers predicate]}])}
+  {:arglists '([{:keys [kind predicate]}])}
   [m]
   (map->Matcher m))
 
@@ -136,7 +128,7 @@
               (fn [acc k v]
                 (if (map? v)
                   (walk acc (conj ks k) v)
-                  (conj acc [(conj ks k) (into-matcher v)])))
+                  (conj acc [(conj ks k) (-matcher v)])))
               acc m))]
     (walk [] [] m)))
 
@@ -146,7 +138,6 @@
   (let [matchers (map-matchers m)]
     (as-matcher
       {:kind :map
-       :matchers matchers
        :predicate (fn predicate
                     [?map]
                     (c/or
@@ -167,10 +158,9 @@
 
 (defn not
   [?matcher]
-  (let [matcher (into-matcher ?matcher)]
+  (let [matcher (-matcher ?matcher)]
     (as-matcher
       {:kind :not
-       :matchers [matcher]
        :predicate (fn predicate
                     [x]
                     (c/not (matcher x)))})))
@@ -178,11 +168,10 @@
 
 (defn and
   [& ?matchers]
-  (let [matchers (mapv into-matcher ?matchers)
+  (let [matchers (mapv -matcher ?matchers)
         f (apply every-pred matchers)]
     (as-matcher
       {:kind :and
-       :matchers matchers
        :predicate (fn predicate
                     [x]
                     (boolean (f x)))})))
@@ -190,11 +179,10 @@
 
 (defn or
   [& ?matchers]
-  (let [matchers (mapv into-matcher ?matchers)
+  (let [matchers (mapv -matcher ?matchers)
         f (apply some-fn matchers)]
     (as-matcher
       {:kind :or
-       :matchers matchers
        :predicate (fn predicate
                     [x]
                     (boolean (f x)))})))
@@ -207,11 +195,10 @@
 
 (defn tuple
   [& ?matchers]
-  (let [matchers (mapv into-matcher ?matchers)
+  (let [matchers (mapv -matcher ?matchers)
         size (count matchers)]
     (as-matcher
       {:kind :tuple
-       :matchers matchers
        :predicate (fn predicate
                     [?coll]
                     (c/or
@@ -229,10 +216,9 @@
 
 (defn coll-of
   [?matcher]
-  (let [matcher (into-matcher ?matcher)]
+  (let [matcher (-matcher ?matcher)]
     (as-matcher
       {:kind :coll-of
-       :matchers [matcher]
        :predicate (fn predicate
                     [?coll]
                     (c/or
@@ -244,11 +230,10 @@
 
 (defn enum
   [& ?matchers]
-  (let [matchers (mapv into-matcher ?matchers)
+  (let [matchers (mapv -matcher ?matchers)
         f (apply some-fn matchers)]
     (as-matcher
       {:kind :enum
-       :matchers matchers
        :predicate (fn predicate
                     [x]
                     (boolean (some f x)))})))
@@ -259,7 +244,6 @@
   (let [entry-matcher (tuple ?key-matcher ?value-matcher)]
     (as-matcher
       {:kind :map-of
-       :matchers [entry-matcher]
        :predicate (fn predicate
                     [?map]
                     (c/and
@@ -281,10 +265,9 @@
   [& ?pairs]
   (let [matchers (->> ?pairs
                       (partition-all  2)
-                      (mapv (fn [[k v]] [k (into-matcher v)])))]
+                      (mapv (fn [[k v]] [k (-matcher v)])))]
     (as-matcher
       {:kind :cat
-       :matchers matchers
        :predicate (fn predicate
                     [?seq]
                     (c/and
@@ -304,42 +287,42 @@
 
 (extend-type nil
   IMatcherBuilder
-  (into-matcher [_]
+  (-matcher [_]
     (equality-matcher nil))
 
   IKind
-  (kind [_]
+  (-kind [_]
     nil))
 
 
 (extend-type #?(:clj Object, :cljs default)
   IMatcherBuilder
-  (into-matcher [obj]
+  (-matcher [obj]
     (if (fn? obj)
       (fn-matcher obj)
       (equality-matcher obj)))
 
   IKind
-  (kind [_]
-    nil))
+  (-kind [obj]
+    (-kind (-matcher obj))))
 
 
 (extend-type #?(:clj Pattern, :cljs js/RegExp)
   IMatcherBuilder
-  (into-matcher [re]
+  (-matcher [re]
     (regexp-matcher re)))
 
 
 (extend-type #?(:clj Var, :cljs cljs.core/Var)
   IMatcherBuilder
-  (into-matcher [var]
+  (-matcher [var]
     (or (equality-matcher var)
-        (into-matcher @var))))
+        (-matcher @var))))
 
 
 (extend-type #?(:clj Symbol, :cljs cljs.core/Symbol)
   IMatcherBuilder
-  (into-matcher [sym]
+  (-matcher [sym]
     (if (= '_ sym)
       (wildcard-matcher)
       (equality-matcher sym))))
@@ -347,25 +330,25 @@
 
 (extend-type #?(:clj PersistentArrayMap, :cljs cljs.core/PersistentArrayMap)
   IMatcherBuilder
-  (into-matcher [m]
+  (-matcher [m]
     (map-matcher m)))
 
 
 (extend-type #?(:clj PersistentHashMap, :cljs cljs.core/PersistentHashMap)
   IMatcherBuilder
-  (into-matcher [m]
+  (-matcher [m]
     (map-matcher m)))
 
 
 (extend-type #?(:clj PersistentList, :cljs cljs.core/List)
   IMatcherBuilder
-  (into-matcher [coll]
+  (-matcher [coll]
     (apply tuple coll)))
 
 
 (extend-type #?(:clj PersistentVector, :cljs cljs.core/PersistentVector)
   IMatcherBuilder
-  (into-matcher [coll]
+  (-matcher [coll]
     (apply tuple coll)))
 
 
@@ -376,4 +359,4 @@
 
 (defn match
   [?matcher data]
-  ((into-matcher ?matcher) data))
+  ((-matcher ?matcher) data))
