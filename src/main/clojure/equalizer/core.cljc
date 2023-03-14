@@ -1,5 +1,5 @@
 (ns equalizer.core
-  (:refer-clojure :exclude [not and or cat])
+  (:refer-clojure :exclude [and or not map])
   (:require
     [clojure.core :as c]
     #?(:clj [equalizer.helpers :as helpers]))
@@ -9,13 +9,7 @@
   #?(:clj
      (:import
        (clojure.lang
-         IFn
-         PersistentArrayMap
-         PersistentHashMap
-         PersistentList
-         PersistentVector
-         Symbol
-         Var)
+         Fn)
        (java.util.regex
          Pattern))))
 
@@ -24,332 +18,13 @@
 ;; Protocols
 ;;
 
-(defprotocol IMatcherBuilder
-  (-matcher [this]))
+(defprotocol Builder
+  (-validator [this]))
 
 
-(defprotocol IMatcher
-  (-match? [this x]))
-
-
-(defprotocol IKind
-  (-kind [x]))
-
-
-
-;;
-;; Matcher
-;;
-
-(defrecord Matcher
-  [kind predicate matcher explainer]
-  IMatcherBuilder
-  (-matcher [this]
-    this)
-
-  IMatcher
-  (-match? [_ x]
-    (helpers/safe
-      (boolean (predicate x))
-      (constantly false)))
-
-  IKind
-  (-kind [_]
-    kind)
-
-  IFn
-  #?(:clj
-     (invoke
-       [this x]
-       (-match? this x))
-
-     :cljs
-     (-invoke
-       [this x]
-       (-match? this x))))
-
-
-(defn as-matcher
-  {:arglists '([{:keys [kind predicate]}])}
-  [m]
-  (map->Matcher m))
-
-
-
-;;
-;; Matchers
-;;
-
-(defn equality-matcher
-  [expected]
-  (as-matcher
-    {:kind :equality
-     :predicate (fn predicate
-                  [x]
-                  (= expected x))}))
-
-
-(defn fn-matcher
-  [f]
-  (as-matcher
-    {:kind :fn
-     :predicate (fn predicate
-                  [x]
-                  (c/or
-                    (= f x)
-                    (boolean (f x))))}))
-
-
-(defn regexp-matcher
-  [re]
-  (as-matcher
-    {:kind :regexp
-     :predicate (fn predicate
-                  [?string]
-                  (c/or
-                    (= re ?string)
-                    (c/and (string? ?string) (boolean (re-matches re ?string)))))}))
-
-
-(defn wildcard-matcher
-  []
-  (as-matcher
-    {:kind :wildcard
-     :predicate (fn predicate
-                  [_]
-                  true)}))
-
-
-(defn map-matchers
-  [m]
-  (letfn [(walk
-            [acc ks m]
-            (reduce-kv
-              (fn [acc k v]
-                (if (map? v)
-                  (walk acc (conj ks k) v)
-                  (conj acc [(conj ks k) (-matcher v)])))
-              acc m))]
-    (walk [] [] m)))
-
-
-(defn map-matcher
-  [m]
-  (let [matchers (map-matchers m)]
-    (as-matcher
-      {:kind :map
-       :predicate (fn predicate
-                    [?map]
-                    (c/or
-                      (= m ?map)
-                      (c/and
-                        (map? ?map)
-                        (reduce
-                          (fn [acc [path matcher]]
-                            (if (matcher (get-in ?map path))
-                              acc
-                              (reduced false)))
-                          true matchers))))})))
-
-
-;;
-;; Combinators
-;;
-
-(defn not
-  [?matcher]
-  (let [matcher (-matcher ?matcher)]
-    (as-matcher
-      {:kind :not
-       :predicate (fn predicate
-                    [x]
-                    (c/not (matcher x)))})))
-
-
-(defn and
-  [& ?matchers]
-  (let [matchers (mapv -matcher ?matchers)
-        f (apply every-pred matchers)]
-    (as-matcher
-      {:kind :and
-       :predicate (fn predicate
-                    [x]
-                    (boolean (f x)))})))
-
-
-(defn or
-  [& ?matchers]
-  (let [matchers (mapv -matcher ?matchers)
-        f (apply some-fn matchers)]
-    (as-matcher
-      {:kind :or
-       :predicate (fn predicate
-                    [x]
-                    (boolean (f x)))})))
-
-
-
-;;
-;; Collections
-;;
-
-(defn tuple
-  [& ?matchers]
-  (let [matchers (mapv -matcher ?matchers)
-        size (count matchers)]
-    (as-matcher
-      {:kind :tuple
-       :predicate (fn predicate
-                    [?coll]
-                    (c/or
-                      (= ?matchers ?coll)
-                      (c/and
-                        (sequential? ?coll)
-                        (= size (count ?coll))
-                        (loop [acc true
-                               [matcher & matchers] matchers
-                               [x & xs] ?coll]
-                          (if (c/or (false? acc) (nil? matcher))
-                            (boolean acc)
-                            (recur (matcher x) matchers xs))))))})))
-
-
-(defn coll-of
-  [?matcher]
-  (let [matcher (-matcher ?matcher)]
-    (as-matcher
-      {:kind :coll-of
-       :predicate (fn predicate
-                    [?coll]
-                    (c/or
-                      (= ?matcher ?coll)
-                      (c/and
-                        (sequential? ?coll)
-                        (every? matcher ?coll))))})))
-
-
-(defn enum
-  [& ?matchers]
-  (let [matchers (mapv -matcher ?matchers)
-        f (apply some-fn matchers)]
-    (as-matcher
-      {:kind :enum
-       :predicate (fn predicate
-                    [x]
-                    (boolean (some f x)))})))
-
-
-(defn map-of
-  [?key-matcher ?value-matcher]
-  (let [entry-matcher (tuple ?key-matcher ?value-matcher)]
-    (as-matcher
-      {:kind :map-of
-       :predicate (fn predicate
-                    [?map]
-                    (c/and
-                      (map? ?map)
-                      (reduce
-                        (fn [acc entry]
-                          (if (entry-matcher entry)
-                            acc
-                            (reduced false)))
-                        true ?map)))})))
-
-
-
-;;
-;; Sequences
-;;
-
-(defn cat
-  [& ?pairs]
-  (let [matchers (->> ?pairs
-                      (partition-all  2)
-                      (mapv (fn [[k v]] [k (-matcher v)])))]
-    (as-matcher
-      {:kind :cat
-       :predicate (fn predicate
-                    [?seq]
-                    (c/and
-                      (sequential? ?seq)
-                      (loop [acc true
-                             [[_ matcher] & matchers] matchers
-                             [x & xs] ?seq]
-                        (if (c/or (false? acc) (nil? matcher))
-                          (boolean acc)
-                          (recur (matcher x) matchers xs)))))})))
-
-
-
-;; 
-;; Default behaviour
-;;
-
-(extend-type nil
-  IMatcherBuilder
-  (-matcher [_]
-    (equality-matcher nil))
-
-  IKind
-  (-kind [_]
-    nil))
-
-
-(extend-type #?(:clj Object, :cljs default)
-  IMatcherBuilder
-  (-matcher [obj]
-    (if (fn? obj)
-      (fn-matcher obj)
-      (equality-matcher obj)))
-
-  IKind
-  (-kind [obj]
-    (-kind (-matcher obj))))
-
-
-(extend-type #?(:clj Pattern, :cljs js/RegExp)
-  IMatcherBuilder
-  (-matcher [re]
-    (regexp-matcher re)))
-
-
-(extend-type #?(:clj Var, :cljs cljs.core/Var)
-  IMatcherBuilder
-  (-matcher [var]
-    (or (equality-matcher var)
-        (-matcher @var))))
-
-
-(extend-type #?(:clj Symbol, :cljs cljs.core/Symbol)
-  IMatcherBuilder
-  (-matcher [sym]
-    (if (= '_ sym)
-      (wildcard-matcher)
-      (equality-matcher sym))))
-
-
-(extend-type #?(:clj PersistentArrayMap, :cljs cljs.core/PersistentArrayMap)
-  IMatcherBuilder
-  (-matcher [m]
-    (map-matcher m)))
-
-
-(extend-type #?(:clj PersistentHashMap, :cljs cljs.core/PersistentHashMap)
-  IMatcherBuilder
-  (-matcher [m]
-    (map-matcher m)))
-
-
-(extend-type #?(:clj PersistentList, :cljs cljs.core/List)
-  IMatcherBuilder
-  (-matcher [coll]
-    (apply tuple coll)))
-
-
-(extend-type #?(:clj PersistentVector, :cljs cljs.core/PersistentVector)
-  IMatcherBuilder
-  (-matcher [coll]
-    (apply tuple coll)))
+(defprotocol Validator
+  (-kind [validator])
+  (-valid? [validator x]))
 
 
 
@@ -357,6 +32,210 @@
 ;; Public API
 ;;
 
-(defn match
-  [?matcher data]
-  ((-matcher ?matcher) data))
+(defn kind
+  [?validator]
+  (-kind (-validator ?validator)))
+
+
+(defn valid?
+  [?validator x]
+  (-valid? (-validator ?validator) x))
+
+
+
+;;
+;; General validators
+;;
+
+(extend-type nil
+  Builder
+  (-validator [_]
+    (reify Validator
+      (-kind [_] :nil)
+      (-valid? [_ x]
+        (nil? x)))))
+
+
+(extend-type #?(:clj Object, :cljs default)
+  Builder
+  (-validator [obj]
+    (reify Validator
+      (-kind [_] :object)
+      (-valid? [_ x]
+        (= obj x)))))
+
+
+(extend-type #?(:clj Fn, :cljs function)
+  Builder
+  (-validator [f]
+    (reify Validator
+      (-kind [_] :fn)
+      (-valid? [_ x]
+        (helpers/safe
+          (boolean (f x))
+          (constantly false))))))
+
+
+(extend-type #?(:clj Pattern, :cljs js/RegExp)
+  Builder
+  (-validator [re]
+    (let [pattern (re-pattern re)]
+      (reify Validator
+        (-kind [_] :regexp)
+        (-valid? [_ x]
+          (c/and
+            (string? x)
+            (boolean (re-find pattern x))))))))
+
+
+
+;;
+;; Combinators
+;;
+
+(defn not
+  [?validator]
+  (let [validator (delay (-validator ?validator))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :not)
+      (-valid? [_ x]
+        (c/not (-valid? @validator x))))))
+
+
+(defn and
+  [& ?validators]
+  (let [validators (->> ?validators
+                        (c/map #(partial -valid? (-validator %)))
+                        (apply every-pred)
+                        (delay))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :and)
+      (-valid? [_ x]
+        (boolean (@validators x))))))
+
+
+(defn or
+  [& ?validators]
+  (let [validators (->> ?validators
+                        (c/map #(partial -valid? (-validator %)))
+                        (apply some-fn)
+                        (delay))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :or)
+      (-valid? [_ x]
+        (boolean (@validators x))))))
+
+
+(defn maybe
+  [?validator]
+  (let [validator (delay (or ?validator nil?))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :maybe)
+      (-valid? [_ x]
+        (-valid? @validator x)))))
+
+
+(defn tuple
+  [& ?validators]
+  (let [validators (delay (c/map -validator ?validators))
+        size (count ?validators)]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :tuple)
+      (-valid? [_ ?coll]
+        (c/and
+          (sequential? ?coll)
+          (= size (count ?coll))
+          (loop [acc true
+                 [v & vs] @validators
+                 [x & xs] ?coll]
+            (if (c/or (false? acc) (nil? v))
+              acc
+              (recur (-valid? v x) vs xs))))))))
+
+
+(defn coll-of
+  [?validator]
+  (let [validator (delay (-validator ?validator))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :coll-of)
+      (-valid? [_ ?coll]
+        (c/and
+          (sequential? ?coll)
+          (every? (partial -valid? @validator) ?coll))))))
+
+
+(defn map-of
+  [?key-validator ?value-validator]
+  (let [validator (delay (tuple ?key-validator ?value-validator))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :map-of)
+      (-valid? [_ ?map]
+        (c/and
+          (map? ?map)
+          (reduce
+            (fn [acc entry]
+              (if (-valid? @validator entry)
+                acc
+                (reduced false)))
+            true ?map))))))
+
+
+(defn map-validators
+  [m]
+  (letfn [(walk
+            [acc ks m]
+            (reduce-kv
+              (fn [acc k v]
+                (if (map? v)
+                  (walk acc (conj ks k) v)
+                  (conj acc [(conj ks k) (-validator v)])))
+              acc m))]
+    (walk [] [] m)))
+
+
+(defn map
+  [?validator]
+  (let [validators (delay (map-validators ?validator))]
+    (reify
+      Builder
+      (-validator [v] v)
+
+      Validator
+      (-kind [_] :map)
+      (-valid? [_ ?map]
+        (c/and
+          (map? ?map)
+          (reduce
+            (fn [acc [path validator]]
+              (if (-valid? validator (get-in ?map path))
+                acc
+                (reduced false)))
+            true @validators))))))
